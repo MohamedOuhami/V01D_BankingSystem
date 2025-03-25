@@ -40,6 +40,42 @@ namespace BankingSystem.Controllers
             return account;
         }
 
+        [HttpPost("{accountNumber}/withdraw")]
+        public async Task<IActionResult> WithdrawMoney(string accountNumber, [FromBody] decimal amount)
+        {
+            
+            using (var transaction = await _context.Database.BeginTransactionAsync())
+            {
+                try
+                {
+                    var account = await _context.Accounts
+                        .Where(a => a.AccountNumber == accountNumber)
+                        .FirstOrDefaultAsync();
+
+                    if (account == null) return NotFound("Account not found");
+                    if (amount <= 0) return BadRequest("Amount must be positive");
+                    if (account.Balance < amount) return BadRequest("Insufficient funds");
+
+                    account.Balance -= amount;
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return Ok(new
+                    {
+                        success = true,
+                        newBalance = account.Balance
+                    });
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    return StatusCode(500, $"Error: {ex.Message}");
+                }
+            }
+        }
+
+
+
         // PUT: api/Accounts/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]

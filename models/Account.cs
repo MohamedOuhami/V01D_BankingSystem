@@ -4,13 +4,15 @@ public class Account
 {
     public int Id { get; set; }
     public string? AccountNumber { get; set; }
-    public float Balance { get; set; }
+    public decimal Balance { get; set; }
     public string? Type { get; set; }
     public string? Currency { get; set; }
     public DateTime OpeningDate { get; set; }
     public string? Status { get; set; }
 
+    [JsonIgnore]
     public int UserId { get; set; }
+    [JsonIgnore]
     public User? User { get; set; }
 
     [JsonIgnore]

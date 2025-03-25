@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 public class Transaction {
     public int Id {get;set;}
     public float Amount {get;set;}

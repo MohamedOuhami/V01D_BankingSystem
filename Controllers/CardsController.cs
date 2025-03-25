@@ -30,17 +30,24 @@ namespace BankingSystem.Controllers
         }
 
         // GET: api/Cards/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Card>> GetCard(int id)
+        [HttpGet("{cardNumber}")]
+        public async Task<ActionResult<Card>> GetCard(string cardNumber,[FromQuery] string cardPin)
         {
-            var card = await _context.Cards.FindAsync(id);
+            var card = await _context.Cards.Include(c => c.Accounts).FirstOrDefaultAsync(card => card.CardNumber == cardNumber);
 
             if (card == null)
             {
-                return NotFound();
+                return NotFound("Could not find the Card");
             }
 
-            return card;
+            if (card.PIN == cardPin){
+
+            return Ok(card);
+            }
+            else {
+                return BadRequest("Invalid PIN");
+            }
+
         }
 
         // PUT: api/Cards/5
