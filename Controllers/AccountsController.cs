@@ -43,23 +43,50 @@ namespace BankingSystem.Controllers
         [HttpPost("{accountNumber}/withdraw")]
         public async Task<IActionResult> WithdrawMoney(string accountNumber, [FromBody] decimal amount)
         {
-            
+            // Begin transaction to ensure atomic operations
             using (var transaction = await _context.Database.BeginTransactionAsync())
             {
                 try
                 {
+                    // Fetch the account using the account number
                     var account = await _context.Accounts
                         .Where(a => a.AccountNumber == accountNumber)
                         .FirstOrDefaultAsync();
 
-                    if (account == null) return NotFound("Account not found");
-                    if (amount <= 0) return BadRequest("Amount must be positive");
-                    if (account.Balance < amount) return BadRequest("Insufficient funds");
+                    // Check if the account exists
+                    if (account == null)
+                        return NotFound("Account not found");
 
+                    // Validate the withdrawal amount
+                    if (amount <= 0)
+                        return BadRequest("Amount must be positive");
+
+                    // Check if the account has sufficient funds
+                    if (account.Balance < amount)
+                        return BadRequest("Insufficient funds");
+
+                    // Update the account balance
                     account.Balance -= amount;
+
+                    // Create a new Operation entry for the transaction
+                    var operation = new Operation
+                    {
+                        Amount = amount,
+                        Timestamp = DateTime.Now,
+                        Type = "Withdrawal",
+                        AccountId = account.Id // Ensure the operation is associated with the correct account
+                    };
+
+                    // Add the operation to the database
+                    await _context.Operations.AddAsync(operation);
+
+                    // Save changes to both the account balance and the operation
                     await _context.SaveChangesAsync();
+
+                    // Commit the transaction to apply the changes
                     await transaction.CommitAsync();
 
+                    // Return success response with the new balance
                     return Ok(new
                     {
                         success = true,
@@ -68,12 +95,43 @@ namespace BankingSystem.Controllers
                 }
                 catch (Exception ex)
                 {
+                    // Rollback transaction if something goes wrong
                     await transaction.RollbackAsync();
                     return StatusCode(500, $"Error: {ex.Message}");
                 }
             }
         }
 
+
+        [HttpGet("operations/{accountNumber}")]
+        public async Task<IActionResult> Get5Operations(string accountNumber)
+        {
+            // Fetch account along with its operations asynchronously
+            var account = await _context.Accounts
+                .Include(a => a.Operations)
+                .FirstOrDefaultAsync(a => a.AccountNumber == accountNumber);
+
+            // Check if the account exists
+            if (account == null)
+            {
+                return NotFound("Account not found.");
+            }
+
+            // If the account has no operations
+            if (account.Operations == null || !account.Operations.Any())
+            {
+                return NotFound("No operations found for this account.");
+            }
+
+            // Retrieve the last 5 operations, ordered by a date field (assuming there's a Date property)
+            var last5Operations = account.Operations
+                .OrderByDescending(o => o.Timestamp)  // Order by the operation date (or another appropriate field)
+                .Take(5)  // Get the last 5 operations
+                .ToList();
+
+            // Return the last 5 operations
+            return Ok(last5Operations);
+        }
 
 
         // PUT: api/Accounts/5
