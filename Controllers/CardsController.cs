@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -31,20 +33,30 @@ namespace BankingSystem.Controllers
 
         // GET: api/Cards/5
         [HttpGet("{cardNumber}")]
-        public async Task<ActionResult<Card>> GetCard(string cardNumber,[FromQuery] string cardPin)
+        public async Task<ActionResult<Card>> GetCard(string cardNumber, [FromQuery] string cardPin)
         {
+            string decryptedPINString;
             var card = await _context.Cards.Include(c => c.Accounts).FirstOrDefaultAsync(card => card.CardNumber == cardNumber);
 
-            if (card == null)
+            // Getting the private Key
+            string privateKey = Encryption.privateKey;
+
+            using (RSA rsa = RSA.Create())
             {
-                return NotFound("Could not find the Card");
+
+                rsa.ImportPkcs8PrivateKey(Convert.FromBase64String(privateKey), out _);
+                byte[] decryptedPINByte = rsa.Decrypt(Convert.FromBase64String(cardPin),RSAEncryptionPadding.OaepSHA256);
+                decryptedPINString = Encoding.UTF8.GetString(decryptedPINByte);
+
             }
 
-            if (card.PIN == cardPin){
+            if ( decryptedPINString != null && card.PIN == decryptedPINString)
+            {
 
-            return Ok(card);
+                return Ok(card);
             }
-            else {
+            else
+            {
                 return BadRequest("Invalid PIN");
             }
 

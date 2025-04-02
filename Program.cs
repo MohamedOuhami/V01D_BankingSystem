@@ -11,8 +11,15 @@ builder.Services.AddSwaggerGen();
 
 // Adding the database
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("MSSQL_Connection")));
-var app = builder.Build();
 
+// Generate the key pair the first time
+Encryption.generateKeyPair();
+
+// Register the key rotation for background service
+builder.Services.AddHostedService<KeyRotationService>();
+
+
+var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
